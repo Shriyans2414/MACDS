@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+title: "MACDS: Multi-Agent Autonomous Cyber Defense System"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: "Kandimalla"
+    given-names: "Shriyans"
+    email: "shriyans.kandimalla@gmail.com"
+    affiliation: "Indian Institute of Information Technology Dharwad"
+repository-code: "https://github.com/Shriyans2414/MACDS"
+abstract: >
+  MACDS is a two-plane autonomous cyber defense architecture that integrates
+  detection, mitigation, and recovery within a lifecycle-aware system model.
+  The system separates network execution from defense coordination to preserve
+  realistic timing behavior while enabling modular, containerized orchestration.
+keywords:
+  - cyber defense
+  - intrusion detection
+  - autonomous systems
+  - network security
+  - multi-agent systems
+license: "MIT"
+version: "1.0.0"
+date-released: 2026-02-12

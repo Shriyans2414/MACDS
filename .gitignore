@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pkl
+
+# Logs & runtime artifacts
+analysis/
+*.log
+
+# Docker
+*.tar
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Virtual environments
+venv/
+.env/
+
+# Streamlit
+.streamlit/
+
+# Large datasets
+*.pcap
+*.csv
+
+__pycache__/
+*.pyc
+.DS_Store
+__MACOSX/

@@ -1,0 +1,14 @@
+numpy==1.26.4
+pandas==2.2.2
+streamlit==1.33.0
+
+# Control Plane
+flask==2.3.3
+requests==2.31.0
+numpy==1.26.0
+
+# Execution Plane
+scapy==2.5.0
+
+# Optional / Visualization
+matplotlib==3.8.0

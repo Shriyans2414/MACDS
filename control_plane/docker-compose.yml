@@ -1,0 +1,15 @@
+services:
+
+  macds_server:
+    build: ./macds_server
+    container_name: macds_server
+
+  macds:
+    build: .
+    container_name: macds_control_plane
+    depends_on:
+      - macds_server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - ENABLE_DOCKER_EXEC=${ENABLE_DOCKER_EXEC}
