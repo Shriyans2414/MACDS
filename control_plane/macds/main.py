@@ -3,6 +3,7 @@ import os
 import pickle
 import subprocess
 from pathlib import Path
+from prometheus_client import start_http_server, Counter, Gauge
 
 from macds.environment.network_environment import NetworkEnvironment
 from macds.agents.multi_agent import MultiAgentSystem
@@ -22,6 +23,28 @@ SERVER_CONTAINER = "macds_server"
 EXEC_SCRIPT_PATH = "/opt/macds_exec/execute_action.sh"
 ATTACKER_IP = "172.18.0.5"  # fixed attacker IP for demo
 
+# ---------------- PROMETHEUS METRICS ----------------
+attack_counter = Counter(
+    "macds_attack_total",
+    "Total detected attacks",
+    ["attack_type"]
+)
+
+execution_counter = Counter(
+    "macds_execution_total",
+    "Total defense executions",
+    ["action"]
+)
+
+episode_reward_gauge = Gauge(
+    "macds_episode_reward",
+    "Reward per episode"
+)
+
+current_episode_gauge = Gauge(
+    "macds_current_episode",
+    "Current episode number"
+)
 
 # ---------------- HELPERS ----------------
 def get_speed():
@@ -85,6 +108,8 @@ def execute_defense(action, target_ip):
 
 # ---------------- TRAINING LOOP ----------------
 def run_training():
+    start_http_server(8001)
+    print("Prometheus metrics server started on port 8001")
     env = NetworkEnvironment()
     agents = MultiAgentSystem()
 
@@ -120,7 +145,9 @@ def run_training():
             total_reward += reward
 
             print("Detected attack:", state.get("attack_type", "unknown"))
-
+            attack_type = state.get("attack_type", "unknown")
+            attack_counter.labels(attack_type=attack_type).inc()
+            execution_counter.labels(action=final_action).inc()
             # -------- LOGGING --------
             action_timeline.append({
                 "episode": episode,
@@ -154,6 +181,8 @@ def run_training():
             time.sleep(get_speed())
 
         episode_rewards.append(total_reward)
+        episode_reward_gauge.set(total_reward)
+        current_episode_gauge.set(episode)
         print(f"Episode {episode:03d} | Total Reward: {total_reward:.2f}")
 
     print("\n--- TRAINING COMPLETE ---\n")
