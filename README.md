@@ -1,7 +1,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10-blue)
 ![Docker](https://img.shields.io/badge/Docker-Compose-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Status](https://img.shields.io/badge/Status-Research--Prototype-orange)
+![Status](https://img.shields.io/badge/Status-Phase--1--Cloud--Validated-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Ubuntu%2020.04+-orange)
 
 # MACDS: Multi-Agent Autonomous Cyber Defense System
@@ -25,6 +25,20 @@ The system supports real-time detection, adaptive response, and cross-container 
 This repository contains the full reproducible implementation.
 
 ---
+
+## Project Status
+
+**Phase 1 Complete — Cloud-Validated Prototype**
+
+- Deployed on AWS EC2
+- Dockerized Control Plane
+- Prometheus-based metrics exposure
+- Grafana dashboards
+- Alert rule validation (FIRING state confirmed)
+- Auto-restart container policy
+- Versioned release: `v1.0-phase1-cloud`
+  
+Phase 1 establishes a reproducible, cloud-deployed baseline architecture upon which future microservices and Kubernetes evolution will be built.
 
 ## Design Principles
 
@@ -50,23 +64,19 @@ MACDS is built around operational resilience.
 ## System Architecture
 MACDS uses a two-plane architecture:
 ```text
-┌─────────────────────────────┐
-│        Control Plane        │
-│  (Docker Multi-Agent RL)    │
-│                             │
-│  Sensor → Detector →        │
-│  Responder → Recovery       │
-└─────────────┬───────────────┘
-              │
-        docker exec bridge
-              │
-┌─────────────▼───────────────┐
-│        Execution Plane      │
-│     (Mininet Emulation)     │
-│                             │
-│  Attacker → Victim (IDS)    │
-│  Real Packet Inspection     │
-└─────────────────────────────┘
+┌───────────────────────┐      Structured attack events        ┌────────────────────────────────┐
+│   Execution Plane     │ ───────────────────────────────────► │        Control Plane           │
+│   (Mininet + IDS)     │                                      │   (Dockerized RL Agents)       │
+└───────────────────────┘                                      │   - Lifecycle Logic            │
+                                                               │   - Mitigation Control         │
+                                                               │   - Metrics Exporter           │
+                                                               └───────────────┬────────────────┘
+                                                                               │  Prometheus metrics (:8001)
+                                                                               ▼
+                                              ┌───────────────────────┐      Query / Alert Evaluation     ┌───────────────────────┐
+                                              │      Prometheus       │ ─────────────────────────────────►│        Grafana        │
+                                              │   (Metrics Scraping)  │                                   │  Dashboards + Alerts  │
+                                              └───────────────────────┘                                   └───────────────────────┘
 ```
 Execution Plane
 - Runs real protocol stacks
@@ -84,6 +94,46 @@ Control-plane logic never processes raw packets, preserving execution-plane timi
 
 ---
 
+## Observability & Monitoring (Phase 1)
+
+MACDS Phase 1 includes full observability stack deployment:
+
+- Prometheus for metric collection
+- Custom lifecycle metrics exposed from control plane
+- Grafana dashboards for operational visualization
+- Real-time alert rules (attack detection validation)
+
+### Exposed Metrics
+
+- `macds_attack_total`
+- `macds_execution_total`
+- `macds_episode_reward`
+- `macds_current_episode`
+
+Alert rule example:
+
+```promql
+sum(macds_attack_total{attack_type!="none"}) > 0
+```
+
+---
+
+## Cloud Deployment (AWS EC2)
+
+Phase 1 validated on:
+
+- Ubuntu 20.04 EC2 instance
+- Dockerized Control Plane
+- Dockerized Monitoring Stack
+- Mininet execution plane running natively
+- Restart policies configured for service resilience
+
+Architecture Flow:
+
+Mininet → IDS → JSON Bridge → Control Plane (Docker) → Prometheus → Grafana → Alert
+
+---
+
 # Core Features
 - Real-time intrusion detection
 - Autonomous mitigation enforcement
@@ -91,7 +141,7 @@ Control-plane logic never processes raw packets, preserving execution-plane timi
 - Reversible blocking logic
 - Structured lifecycle event logging
 - Online + offline processing modes
-- Fully containerized deployment
+- Containerized control plane and monitoring stack
 - Deterministic behavior under load
 
 ---
@@ -184,7 +234,7 @@ sudo apt install mininet
 
 From project root:
 ```bash
-pip install -r requirements.txt
+pip install -r control_plane/requirements.txt
 ```
 ### Running the Execution Plane
 ```bash
@@ -230,3 +280,15 @@ It does not target:
 - Application-layer semantic abuse
 
 ---
+
+## Versioning
+
+- v1.0-phase1-cloud  
+  - Stable AWS EC2 deployment  
+  - Dockerized control plane  
+  - Prometheus + Grafana observability  
+  - Alert validation completed  
+
+Future roadmap:
+- Phase 2 — Microservices refactor (REST bridge)
+- Phase 3 — Kubernetes (EKS) orchestration
