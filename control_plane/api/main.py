@@ -1,6 +1,6 @@
 import threading
+import boto3
 from collections import OrderedDict
-
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 import time
@@ -9,15 +9,12 @@ from macds.agents.multi_agent import MultiAgentSystem
 
 app = FastAPI(title="MACDS Control Plane API")
 
-# FIFO ordered dict — oldest pending action served first.
-# Lock required: FastAPI runs handlers in a thread pool.
 pending_actions: OrderedDict[str, str] = OrderedDict()
 _lock = threading.Lock()
-
-# Single shared agents instance — ALL endpoints use this object.
-# Training via /api/train updates THIS object's Q-tables in memory.
 agents = MultiAgentSystem()
 
+dynamodb = boto3.resource("dynamodb", region_name="ap-south-1")
+table = dynamodb.Table("macds-attack-history")
 
 class AttackLog(BaseModel):
     timestamp: float
@@ -27,19 +24,12 @@ class AttackLog(BaseModel):
     cpu_usage: float = Field(default=80.0)
     bandwidth_usage: float = Field(default=90.0)
 
-
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
-
 @app.post("/api/logs")
 async def receive_log(log: AttackLog):
-    """
-    Receives an attack log from the Execution Plane.
-    If attack is active: agents vote and queue the action.
-    If attack resolved: queue unblock immediately.
-    """
     current_state = {
         "packet_rate": log.packet_rate,
         "cpu_usage": log.cpu_usage,
@@ -48,7 +38,6 @@ async def receive_log(log: AttackLog):
     }
 
     if log.attack_type.lower() in ("none", ""):
-        # Attack resolved — teach agents unblocking after attack is good
         attacked_state = {
             "packet_rate": 500,
             "cpu_usage": 80,
@@ -60,7 +49,6 @@ async def receive_log(log: AttackLog):
             pending_actions[log.source_ip] = "unblock_ip"
         return {"status": "success", "action_decided": "unblock_ip"}
 
-    # Attack ongoing — stable state is what we're aiming for
     stable_state = {
         "packet_rate": 50,
         "cpu_usage": 20,
@@ -71,9 +59,19 @@ async def receive_log(log: AttackLog):
     agent_actions = agents.act(current_state)
     final_action = agents.coordinate(agent_actions)
 
-    # block_ip is the correct response during an attack
     reward = 2.0 if final_action == "block_ip" else (0.5 if final_action == "raise_alert" else -2.0)
     agents.learn(current_state, final_action, reward, next_state=stable_state)
+
+    try:
+        table.put_item(Item={
+            "timestamp": str(log.timestamp),
+            "attack_type": log.attack_type,
+            "source_ip": log.source_ip,
+            "action_decided": final_action,
+            "packet_rate": str(log.packet_rate),
+        })
+    except Exception as e:
+        print(f"[DynamoDB ERROR] {e}")
 
     if final_action != "do_nothing":
         with _lock:
@@ -81,13 +79,8 @@ async def receive_log(log: AttackLog):
 
     return {"status": "success", "action_decided": final_action}
 
-
 @app.get("/api/action")
 async def get_action():
-    """
-    Execution plane polls this to retrieve and clear the next pending action.
-    FIFO: oldest queued action is returned first.
-    """
     with _lock:
         if pending_actions:
             target_ip = next(iter(pending_actions))
@@ -95,15 +88,8 @@ async def get_action():
             return {"action": action, "target_ip": target_ip}
     return {"action": "none", "target_ip": ""}
 
-
 @app.post("/api/train")
 async def train_agents(rounds: int = Query(default=500, ge=1, le=5000)):
-    """
-    Train the LIVE agents object in-process.
-    This is the ONLY correct way to train — docker exec creates a separate
-    Python process with its own MultiAgentSystem that doesn't affect the API.
-    Call this endpoint ONCE after startup to pre-train before real attacks.
-    """
     attack_state = {
         "packet_rate": 2000,
         "cpu_usage": 80,
@@ -116,7 +102,6 @@ async def train_agents(rounds: int = Query(default=500, ge=1, le=5000)):
         "bandwidth_usage": 20,
         "attack_type": "none",
     }
-
     block_count = 0
     for _ in range(rounds):
         actions = agents.act(attack_state)
@@ -133,10 +118,8 @@ async def train_agents(rounds: int = Query(default=500, ge=1, le=5000)):
         "message": "Agents trained in-process. Q-tables saved to /app/qtables/",
     }
 
-
 @app.get("/api/status")
 async def status():
-    """Show current agent epsilon values and pending action queue."""
     return {
         "pending_actions": dict(pending_actions),
         "agent_epsilons": {
@@ -144,7 +127,6 @@ async def status():
             for name, agent in agents.agents.items()
         },
     }
-
 
 if __name__ == "__main__":
     import uvicorn
