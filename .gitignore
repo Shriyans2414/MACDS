@@ -39,3 +39,4 @@ __MACOSX/
 *.pe
 *.csv
 *.pem
+.env
