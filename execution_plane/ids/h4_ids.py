@@ -264,6 +264,9 @@ def detect_http_flood(packets: list):
 
     for ts, pkt in packets:
         if TCP in pkt and pkt[TCP].dport == 80 and now - ts <= 1.0:
+            flags = pkt[TCP].flags # FIX: capture tcp flags
+            if (flags & 0x02) and not (flags & 0x10): # FIX: skip pure SYN packets to avoid double detect
+                continue # FIX: skip pure SYN packets
             http_counts[pkt[IP].src] += 1
 
     if not attack_state["http_flood"]:

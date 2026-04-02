@@ -18,7 +18,8 @@ _MAX_RETRIES = 3
 _RETRY_DELAY = 0.5
 
 
-def send_log(attack_type: str, src_ip: str, packet_rate: float = 0.0):
+def send_log(attack_type: str, src_ip: str, packet_rate: float = 0.0,
+             confidence: str = "MEDIUM", detail: str = ""):
     """Send an attack event to the Control Plane with retry logic."""
     url = f"{CONTROL_PLANE_URL}/api/logs"
     payload = {
@@ -26,6 +27,8 @@ def send_log(attack_type: str, src_ip: str, packet_rate: float = 0.0):
         "attack_type": attack_type,
         "source_ip": src_ip,
         "packet_rate": packet_rate,
+        "confidence": confidence,
+        "detail": detail[:500]
     }
     for attempt in range(1, _MAX_RETRIES + 1):
         try:
@@ -50,18 +53,22 @@ def execute_action(action_data: dict):
 
     if action == "block_ip":
         print(f"[CLIENT] Blocking {target_ip}")
-        subprocess.run(
+        res = subprocess.run( # FIX: capture subprocess result
             ["iptables", "-I", "INPUT", "-s", target_ip, "-j", "DROP"],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE, # FIX: capture stderr instead of devnull
         )
+        if res.returncode != 0: # FIX: check for failure
+            print(f"[CLIENT ERROR] iptables failed (not root?): {res.stderr.decode().strip()}") # FIX: print error
     elif action in ("unblock_ip", "recover_ip"):
         print(f"[CLIENT] Unblocking {target_ip}")
-        subprocess.run(
+        res = subprocess.run( # FIX: capture subprocess result
             ["iptables", "-D", "INPUT", "-s", target_ip, "-j", "DROP"],
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE, # FIX: capture stderr instead of devnull
         )
+        if res.returncode != 0: # FIX: check for failure
+            print(f"[CLIENT ERROR] iptables failed (not root?): {res.stderr.decode().strip()}") # FIX: print error
     elif action == "raise_alert":
         print(f"[CLIENT] ALERT raised for {target_ip} — no iptables change")
 

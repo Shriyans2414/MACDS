@@ -51,7 +51,7 @@ r = requests.post(f"{CONTROL_PLANE_URL}/api/train?rounds=300", timeout=30)
 check("POST /api/train 200", r.status_code == 200)
 data = r.json()
 print(f"       block_ip rate: {data.get('block_ip_rate')}")
-check("block_ip rate > 80%", float(data.get("block_ip_rate", "0%").rstrip("%")) > 80)
+check("block_ip rate > 90%", float(data.get("block_ip_rate", "0%").rstrip("%")) > 90) # FIX: changed > 80% to > 90%
 
 # ── 2. SYN flood → block_ip ───────────────────────────────
 step("2 — SYN flood detected → block_ip expected")

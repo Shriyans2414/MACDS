@@ -1,5 +1,5 @@
 import boto3
-import json
+# FIX: removed unused import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 dynamodb = boto3.resource("dynamodb", region_name="ap-south-1")

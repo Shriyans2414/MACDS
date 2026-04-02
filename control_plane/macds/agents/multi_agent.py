@@ -99,6 +99,7 @@ class MultiAgentSystem:
     """
 
     def __init__(self):
+        self._update_count: int = 0 # FIX: counter to prevent saving on every single learn call
         actions = [
             "do_nothing",
             "raise_alert",
@@ -130,10 +131,10 @@ class MultiAgentSystem:
         Priority-based conflict resolution.
         block_ip beats everything. unblock_ip and raise_alert are secondary.
         """
-        vals = set(actions.values())
+        vals = list(actions.values()) # FIX: use list to allow counting votes
         if "block_ip" in vals:
             return "block_ip"
-        if "unblock_ip" in vals:
+        if vals.count("unblock_ip") >= 2: # FIX: require strictly >= 2 votes for unblock_ip
             return "unblock_ip"
         if "raise_alert" in vals:
             return "raise_alert"
@@ -142,7 +143,9 @@ class MultiAgentSystem:
     def learn(self, state: dict, action: str, reward: float, next_state: dict):
         for agent in self.agents.values():
             agent.update(state, action, reward, next_state)
-        self.save_all(QTABLE_DIR)
+        self._update_count += 1 # FIX: increment counter to throttle file writes
+        if self._update_count % 50 == 0: # FIX: only save every 50 calls
+            self.save_all(QTABLE_DIR) # FIX: throttled save to prevent disk IO bottleneck
 
     def save_all(self, directory: str):
         os.makedirs(directory, exist_ok=True)
